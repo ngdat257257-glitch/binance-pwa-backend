@@ -418,10 +418,38 @@ app.post('/api/test-push', async (req, res) => {
     }
   }
 
+  // Lưu sự kiện cho App Native iOS nhận được ngay lập tức
+  latestDeviceEvent = {
+    title: cfg.title || 'Thông báo rút tiền USDT (BEP-20)',
+    body: (cfg.bodyTemplate || 'Lệnh rút {amount} USDT về ví {short_address} đã được xác nhận thành công trên mạng BSC.')
+      .replace('{amount}', '100,00')
+      .replace('{net_amount}', '99,00')
+      .replace('{short_address}', '0x7A...8F2')
+      .replace('{address}', '0x7A23...8F2')
+      .replace('{time}', new Date().toLocaleTimeString('vi-VN')),
+    delaySeconds: 1.0,
+    route: '#withdraw',
+    timestamp: Date.now() / 1000
+  };
+
   res.json({
     success: true,
     message: `Đã gửi Push Notification thử nghiệm đến ${sentCount} thiết bị iPhone MKT!`
   });
+});
+
+// F2. API DÀNH CHO APP NATIVE IOS NHẬN SỰ KIỆN THÔNG BÁO TỪ ADMIN
+let latestDeviceEvent = null;
+
+app.get('/api/device/events', (req, res) => {
+  const since = parseFloat(req.query.since) || 0;
+  if (latestDeviceEvent && latestDeviceEvent.timestamp > since) {
+    return res.json({
+      hasNew: true,
+      notification: latestDeviceEvent
+    });
+  }
+  res.json({ hasNew: false });
 });
 
 // G. CÁC API CLIENT ĐẦY ĐỦ (CHO GITHUB PAGES KẾT NỐI VÀO)
