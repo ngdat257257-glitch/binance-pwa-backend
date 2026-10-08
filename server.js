@@ -449,14 +449,35 @@ app.get('/api/user/commission', (req, res) => {
 
 // 6. Bảng xếp hạng & Vòng quay
 app.get('/api/leaderboard', (req, res) => {
+  const top10 = [
+    { rank: 1, name: 'Alex Trader', userName: 'Alex Trader', userId: '86102911', activePackages: 8, weeklyWfiMined: 154200, volume: 154200, reward: '1.000 USDT' },
+    { rank: 2, name: 'Dragon Whale', userName: 'Dragon Whale', userId: '86948201', activePackages: 5, weeklyWfiMined: 98400, volume: 98400, reward: '500 USDT' },
+    { rank: 3, name: 'Nick (Bạn)', userName: 'Nick (Bạn)', userId: '86392015', activePackages: 1, weeklyWfiMined: 65200, volume: 65200, reward: '200 USDT' },
+    { rank: 4, name: 'Crypto King', userName: 'Crypto King', userId: '86221004', activePackages: 3, weeklyWfiMined: 43100, volume: 43100, reward: '100 USDT' }
+  ];
   res.json({
     success: true,
-    leaderboard: [
-      { rank: 1, name: 'Alex Trader', volume: 154200, reward: '1.000 USDT' },
-      { rank: 2, name: 'Dragon Whale', volume: 98400, reward: '500 USDT' },
-      { rank: 3, name: 'Nick (Bạn)', volume: 65200, reward: '200 USDT' },
-      { rank: 4, name: 'Crypto King', volume: 43100, reward: '100 USDT' }
+    weekNumber: 41,
+    secondsRemaining: 245100,
+    top10: top10,
+    leaderboard: top10,
+    history: [
+      {
+        weekNumber: 40,
+        endDate: '2026-10-04 23:59',
+        rank1: { name: 'Crypto Legend', wfi: 192000 },
+        rank2: { name: 'Alex Trader', wfi: 142000 },
+        rank3: { name: 'Bsc Master', wfi: 95000 },
+        totalParticipants: 142
+      }
     ]
+  });
+});
+
+app.post('/api/admin/leaderboard/settle', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Đã chốt kết quả tuần thành công! Top 3 đã được cộng thưởng vào ví.'
   });
 });
 
@@ -494,13 +515,27 @@ app.post('/api/auth/login', (req, res) => {
 
 // H. ADMIN API ENDPOINTS (Dành cho trang Admin CRM)
 app.get('/api/admin/dashboard', (req, res) => {
+  const pendingCount = (db.withdrawals || []).filter(w => w.status === 'PENDING').length;
+  const stats = {
+    totalUsers: 142,
+    totalUsdt: 125000.0,
+    totalWfi: 3580000.0,
+    totalPackages: 38,
+    revenueToday: 1850.0,
+    revenueTotal: 24500.0,
+    totalDeposits: 12500.0,
+    totalWithdrawals: 3400.0,
+    pendingWithdrawals: pendingCount,
+    adminUsdtBalance: 2450.0,
+    adminBnbBalance: 0.45,
+    adminWallet: '0xcb3Fc21Af451e1D51Cd58078F025Dad92595f5BA',
+    latestBlock: 42198031,
+    adminStatus: 'Đã kết nối'
+  };
   res.json({
     success: true,
-    totalUsers: 142,
-    activePackagesCount: 38,
-    totalDeposited: 12500,
-    totalWithdrawn: 3400,
-    pendingWithdrawals: (db.withdrawals || []).filter(w => w.status === 'PENDING').length
+    stats,
+    ...stats
   });
 });
 
@@ -508,8 +543,8 @@ app.get('/api/admin/users', (req, res) => {
   res.json({
     success: true,
     users: [
-      { id: '86392015', name: 'Nick', email: 'mkt.demo@gmail.com', role: 'MKT', usdtBalance: 85.50, wfiBalance: 12580.35, activePackages: 1, commissionLevel: 2, isLocked: false },
-      { id: '86392016', name: 'John Doe', email: 'customer1@gmail.com', role: 'CUSTOMER', usdtBalance: 210.00, wfiBalance: 5200.00, activePackages: 0, commissionLevel: 0, isLocked: false }
+      { id: '86392015', name: 'Nick', email: 'mkt.demo@gmail.com', phone: '0988 123 456', role: 'MKT', usdtBalance: 85.50, wfiBalance: 12580.35, activePackages: 1, salesVolume: 12500.0, commissionLevel: 2, commissionTierLabel: 'Cấp 2 (8%)', isLocked: false, createdAt: '2026-10-01' },
+      { id: '86392016', name: 'John Doe', email: 'customer1@gmail.com', phone: '0912 345 678', role: 'CUSTOMER', usdtBalance: 210.00, wfiBalance: 5200.00, activePackages: 0, salesVolume: 3200.0, commissionLevel: 0, commissionTierLabel: 'Chưa đạt', isLocked: false, createdAt: '2026-10-03' }
     ]
   });
 });
@@ -517,8 +552,10 @@ app.get('/api/admin/users', (req, res) => {
 app.get('/api/admin/packages', (req, res) => {
   res.json({
     success: true,
+    totalPackagesSold: 38,
+    totalPackageRevenue: 380.0,
     packages: [
-      { id: 1, userName: 'Nick', packageName: 'Gói đào WFI 1 Ngày', price: 10, quantity: 1, status: 'ACTIVE', createdAt: new Date().toISOString() }
+      { id: 1, userName: 'Nick', userId: '86392015', packageName: 'Gói đào WFI 1 Ngày', price: 10, quantity: 1, dailyYield: 5000, status: 'ACTIVE', createdAt: '2026-10-08 14:30' }
     ]
   });
 });
@@ -527,20 +564,37 @@ app.get('/api/admin/deposits', (req, res) => {
   res.json({
     success: true,
     deposits: [
-      { id: 1, userName: 'Nick', amount: 85.50, status: 'COMPLETED', txid: '0x8f2a4c5e7b...', createdAt: new Date().toISOString() }
+      { id: 1, userName: 'Nick', userId: '86392015', amount: 85.50, status: 'COMPLETED', txid: '0x8f2a4c5e7b1a3d9e8c2f4a6b8d0e2f4a6b8d0e2f4a6b8d0e2f4a6b8d0e2f4a6b', createdAt: '2026-10-08 10:15' }
     ]
   });
 });
 
 app.get('/api/admin/withdrawals', (req, res) => {
+  const formatted = (db.withdrawals || []).map(w => ({
+    id: w.orderId || w.id,
+    orderId: w.orderId || w.id,
+    userName: w.userName || (w.userRole === 'MKT' ? 'Nick (MKT)' : 'Customer'),
+    userId: w.userId || 'user_default',
+    amount: w.amount,
+    fee: w.fee || 1.0,
+    netAmount: w.netAmount || (w.amount - 1.0),
+    toAddress: w.toAddress,
+    status: w.status,
+    createdAt: w.createdAt
+  }));
   res.json({
     success: true,
-    withdrawals: db.withdrawals || []
+    withdrawals: formatted
   });
 });
 
 app.get('/api/admin/commission/history', (req, res) => {
-  res.json({ success: true, history: [] });
+  res.json({
+    success: true,
+    history: [
+      { id: 1, userName: 'Nick', userId: '86392015', oldLevel: 1, newLevel: 2, newRate: 0.08, triggerSales: 12500, reason: 'Đạt mốc doanh số nhóm Cấp 2', createdAt: '2026-10-07 16:40' }
+    ]
+  });
 });
 
 app.get('/api/admin/mkt/config', (req, res) => {
@@ -553,32 +607,44 @@ app.post('/api/admin/mkt/config', (req, res) => {
 });
 
 app.get('/api/admin/mkt/list', (req, res) => {
+  const list = [
+    { id: 'mkt_88001122', name: 'Marketing Partner (Demo)', email: 'mkt.demo@gmail.com', role: 'MKT', createdAt: '2026-10-08', isLocked: false, activeDevices: db.subscriptions.length }
+  ];
   res.json({
     success: true,
-    mktList: [
-      { id: 'mkt_88001122', name: 'Marketing Partner', email: 'mkt.demo@gmail.com', role: 'MKT', activeDevices: db.subscriptions.length }
-    ]
+    mktUsers: list,
+    mktList: list
   });
 });
 
 app.get('/api/admin/mkt/demo-history', (req, res) => {
+  const mktWithdrawals = (db.withdrawals || []).filter(w => w.userRole === 'MKT').map(w => ({
+    id: w.orderId || w.id,
+    orderId: w.orderId || w.id,
+    email: w.userEmail || 'mkt.demo@gmail.com',
+    userId: w.userId,
+    amount: w.amount,
+    toAddress: w.toAddress,
+    status: 'DELIVERED',
+    createdAt: w.createdAt
+  }));
   res.json({
     success: true,
-    history: db.withdrawals.filter(w => w.userRole === 'MKT')
+    history: mktWithdrawals
   });
 });
 
 app.post('/api/admin/withdraw/approve', (req, res) => {
-  const { orderId } = req.body;
-  const item = db.withdrawals.find(w => String(w.orderId) === String(orderId));
+  const idToFind = req.body.orderId || req.body.withdrawId;
+  const item = db.withdrawals.find(w => String(w.orderId) === String(idToFind) || String(w.id) === String(idToFind));
   if (item) item.status = 'COMPLETED';
   saveDatabase(db);
   res.json({ success: true, message: 'Đã duyệt lệnh rút thành công!' });
 });
 
 app.post('/api/admin/withdraw/reject', (req, res) => {
-  const { orderId } = req.body;
-  const item = db.withdrawals.find(w => String(w.orderId) === String(orderId));
+  const idToFind = req.body.orderId || req.body.withdrawId;
+  const item = db.withdrawals.find(w => String(w.orderId) === String(idToFind) || String(w.id) === String(idToFind));
   if (item) item.status = 'REJECTED';
   saveDatabase(db);
   res.json({ success: true, message: 'Đã từ chối lệnh rút!' });
