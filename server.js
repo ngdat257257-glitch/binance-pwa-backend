@@ -358,6 +358,232 @@ app.post('/api/test-push', async (req, res) => {
   });
 });
 
+// G. CÁC API CLIENT ĐẦY ĐỦ (CHO GITHUB PAGES KẾT NỐI VÀO)
+// 1. Alias rút tiền
+app.post('/api/withdraw/request', (req, res) => {
+  req.url = '/api/withdraw';
+  app.handle(req, res);
+});
+
+// 2. Lịch sử rút tiền
+app.get('/api/user/withdrawals', (req, res) => {
+  res.json({
+    success: true,
+    withdrawals: db.withdrawals || []
+  });
+});
+
+// 3. Nạp tiền & Lịch sử nạp
+app.post('/api/deposit/verify', (req, res) => {
+  const { txid } = req.body;
+  const amt = 50.0;
+  res.json({
+    success: true,
+    message: 'Xác nhận nạp tiền thành công!',
+    data: {
+      txid: txid || '0x' + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join(''),
+      amount: amt,
+      newUsdtBalance: 135.50,
+      fromAddress: '0x3B28a9C2...789',
+      blockNumber: 42198031,
+      createdAt: new Date().toISOString()
+    }
+  });
+});
+
+app.get('/api/user/deposits', (req, res) => {
+  res.json({
+    success: true,
+    deposits: [
+      {
+        id: 1,
+        txid: '0x8f2a4c5e7b1a3d9e8c2f4a6b8d0e2f4a6b8d0e2f4a6b8d0e2f4a6b8d0e2f4a6b',
+        amount: 85.50,
+        status: 'COMPLETED',
+        createdAt: new Date().toISOString()
+      }
+    ]
+  });
+});
+
+// 4. Mua gói đào WFI
+app.post('/api/package/buy', (req, res) => {
+  const qty = parseInt(req.body.quantity) || 1;
+  const cost = qty * 10;
+  res.json({
+    success: true,
+    user: {
+      usdtBalance: Math.max(0, 85.50 - cost),
+      activePackages: 1 + qty
+    },
+    package: {
+      quantity: qty,
+      totalCost: cost
+    },
+    mining: {
+      hourlyRate: (1 + qty) * 208.33,
+      wfiMinedToday: (1 + qty) * 5000
+    }
+  });
+});
+
+// 5. Lịch sử giao dịch ví & Hoa hồng
+app.get('/api/user/transactions', (req, res) => {
+  res.json({
+    success: true,
+    transactions: [
+      { id: 1, type: 'DEPOSIT', amount: 85.50, symbol: 'USDT', status: 'COMPLETED', date: '08/10/2026' }
+    ]
+  });
+});
+
+app.get('/api/user/commission', (req, res) => {
+  res.json({
+    success: true,
+    level: 2,
+    rate: 8.0,
+    salesVolume: 12500,
+    history: []
+  });
+});
+
+// 6. Bảng xếp hạng & Vòng quay
+app.get('/api/leaderboard', (req, res) => {
+  res.json({
+    success: true,
+    leaderboard: [
+      { rank: 1, name: 'Alex Trader', volume: 154200, reward: '1.000 USDT' },
+      { rank: 2, name: 'Dragon Whale', volume: 98400, reward: '500 USDT' },
+      { rank: 3, name: 'Nick (Bạn)', volume: 65200, reward: '200 USDT' },
+      { rank: 4, name: 'Crypto King', volume: 43100, reward: '100 USDT' }
+    ]
+  });
+});
+
+app.get('/api/wheel/status', (req, res) => {
+  res.json({ success: true, spinsLeft: 3, costPerSpin: 1 });
+});
+app.post('/api/wheel/spin', (req, res) => {
+  res.json({
+    success: true,
+    prize: { label: '+100 WFI', type: 'WFI', value: 100, index: 2 },
+    newWfiBalance: 12680.35,
+    spinsLeft: 2
+  });
+});
+app.post('/api/wheel/buy', (req, res) => {
+  res.json({ success: true, spinsLeft: 5, newUsdtBalance: 80.50 });
+});
+
+// 7. Đăng nhập
+app.post('/api/auth/login', (req, res) => {
+  const { email } = req.body;
+  const isMkt = email && (email.toLowerCase().includes('mkt') || email.toLowerCase().includes('marketing'));
+  res.json({
+    success: true,
+    user: {
+      id: isMkt ? 'mkt_88001122' : 'user_86392015',
+      name: isMkt ? 'Marketing Partner' : 'Đặng Hùng',
+      email: email || 'user@example.com',
+      role: isMkt ? 'MKT' : 'CUSTOMER',
+      usdtBalance: 85.50,
+      wfiBalance: 12580.35
+    }
+  });
+});
+
+// H. ADMIN API ENDPOINTS (Dành cho trang Admin CRM)
+app.get('/api/admin/dashboard', (req, res) => {
+  res.json({
+    success: true,
+    totalUsers: 142,
+    activePackagesCount: 38,
+    totalDeposited: 12500,
+    totalWithdrawn: 3400,
+    pendingWithdrawals: (db.withdrawals || []).filter(w => w.status === 'PENDING').length
+  });
+});
+
+app.get('/api/admin/users', (req, res) => {
+  res.json({
+    success: true,
+    users: [
+      { id: '86392015', name: 'Nick', email: 'mkt.demo@gmail.com', role: 'MKT', usdtBalance: 85.50, wfiBalance: 12580.35, activePackages: 1, commissionLevel: 2, isLocked: false },
+      { id: '86392016', name: 'John Doe', email: 'customer1@gmail.com', role: 'CUSTOMER', usdtBalance: 210.00, wfiBalance: 5200.00, activePackages: 0, commissionLevel: 0, isLocked: false }
+    ]
+  });
+});
+
+app.get('/api/admin/packages', (req, res) => {
+  res.json({
+    success: true,
+    packages: [
+      { id: 1, userName: 'Nick', packageName: 'Gói đào WFI 1 Ngày', price: 10, quantity: 1, status: 'ACTIVE', createdAt: new Date().toISOString() }
+    ]
+  });
+});
+
+app.get('/api/admin/deposits', (req, res) => {
+  res.json({
+    success: true,
+    deposits: [
+      { id: 1, userName: 'Nick', amount: 85.50, status: 'COMPLETED', txid: '0x8f2a4c5e7b...', createdAt: new Date().toISOString() }
+    ]
+  });
+});
+
+app.get('/api/admin/withdrawals', (req, res) => {
+  res.json({
+    success: true,
+    withdrawals: db.withdrawals || []
+  });
+});
+
+app.get('/api/admin/commission/history', (req, res) => {
+  res.json({ success: true, history: [] });
+});
+
+app.get('/api/admin/mkt/config', (req, res) => {
+  res.json({ success: true, config: db.config });
+});
+
+app.post('/api/admin/mkt/config', (req, res) => {
+  req.url = '/api/config';
+  app.handle(req, res);
+});
+
+app.get('/api/admin/mkt/list', (req, res) => {
+  res.json({
+    success: true,
+    mktList: [
+      { id: 'mkt_88001122', name: 'Marketing Partner', email: 'mkt.demo@gmail.com', role: 'MKT', activeDevices: db.subscriptions.length }
+    ]
+  });
+});
+
+app.get('/api/admin/mkt/demo-history', (req, res) => {
+  res.json({
+    success: true,
+    history: db.withdrawals.filter(w => w.userRole === 'MKT')
+  });
+});
+
+app.post('/api/admin/withdraw/approve', (req, res) => {
+  const { orderId } = req.body;
+  const item = db.withdrawals.find(w => String(w.orderId) === String(orderId));
+  if (item) item.status = 'COMPLETED';
+  saveDatabase(db);
+  res.json({ success: true, message: 'Đã duyệt lệnh rút thành công!' });
+});
+
+app.post('/api/admin/withdraw/reject', (req, res) => {
+  const { orderId } = req.body;
+  const item = db.withdrawals.find(w => String(w.orderId) === String(orderId));
+  if (item) item.status = 'REJECTED';
+  saveDatabase(db);
+  res.json({ success: true, message: 'Đã từ chối lệnh rút!' });
+});
+
 // Khởi chạy server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`=======================================================`);
