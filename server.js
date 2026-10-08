@@ -11,11 +11,21 @@ const PORT = process.env.PORT || 10000;
 // ==============================================================================
 // 1. CẤU HÌNH VAPID KEYS CHO WEB PUSH (APPLE IOS & ANDROID)
 // ==============================================================================
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BFIU7SwiIRWFUnqKrgYoNq11bco4r9ffq484DmrdbjPmSeRBhGrHr8LqCFrOvKyRgCe1nyYxgw1W0yM7yQYkBZo';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'AMXNT2X3ppdmZ-VMYRnK0HFGTT7sjs91IlZ_2EeQL_Dn';
+let VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BFIU7SwiIRWFUnqKrgYoNq11bco4r9ffq484DmrdbjPmSeRBhGrHr8LqCFrOvKyRgCe1nyYxgw1W0yM7yQYkBZo';
+let VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'xc1PZfeml2Zn5UxhGcrQcUZNPuyOz3UiVn_YR5Av8Oc';
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@binance-pwa.com';
 
-webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+try {
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  console.log('✓ Đã cấu hình VAPID Details thành công!');
+} catch (vapidErr) {
+  console.warn('⚠️ Lỗi cấu hình VAPID ban đầu, đang tự động sinh cặp khóa VAPID chuẩn 100%...');
+  const autoKeys = webpush.generateVAPIDKeys();
+  VAPID_PUBLIC_KEY = autoKeys.publicKey;
+  VAPID_PRIVATE_KEY = autoKeys.privateKey;
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  console.log('✓ Đã sinh và áp dụng VAPID Keys mới:', VAPID_PUBLIC_KEY);
+}
 
 // Middleware
 app.use(cors({
