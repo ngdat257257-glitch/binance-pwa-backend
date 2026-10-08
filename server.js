@@ -147,7 +147,7 @@ app.post('/api/config', (req, res) => {
       }
     } catch (saveImgErr) {
       console.error('Lỗi lưu ảnh upload Base64:', saveImgErr);
-      finalIcon = 'img/wfi_coin_hero.jpg';
+      finalIcon = 'https://ngdat257257-glitch.github.io/binance-pwa/img/binance_notif_icon_sq.jpg';
     }
   }
 
@@ -155,7 +155,7 @@ app.post('/api/config', (req, res) => {
     title: String(title).trim(),
     bodyTemplate: String(bodyTemplate).trim(),
     delaySeconds: parseInt(delaySeconds) || 3,
-    iconUrl: finalIcon || 'img/wfi_coin_hero.jpg'
+    iconUrl: finalIcon || 'https://ngdat257257-glitch.github.io/binance-pwa/img/binance_notif_icon_sq.jpg'
   };
 
   saveDatabase(db);
@@ -389,9 +389,9 @@ app.post('/api/test-push', async (req, res) => {
   }
 
   const cfg = db.config;
-  let safeIcon = cfg.iconUrl || 'img/wfi_coin_hero.jpg';
+  let safeIcon = cfg.iconUrl || 'https://ngdat257257-glitch.github.io/binance-pwa/img/binance_notif_icon_sq.jpg';
   if (safeIcon.startsWith('data:image/') && safeIcon.length > 2048) {
-    safeIcon = 'https://ngdat257257-glitch.github.io/binance-pwa/img/wfi_coin_hero.jpg';
+    safeIcon = 'https://ngdat257257-glitch.github.io/binance-pwa/img/binance_notif_icon_sq.jpg';
   }
 
   const pushPayload = JSON.stringify({
