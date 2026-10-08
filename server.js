@@ -33,8 +33,15 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
+
+// Thư mục lưu trữ logo tĩnh upload từ Admin cho Web Push
+const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
+app.use('/uploads', express.static(UPLOAD_DIR));
 
 // ==============================================================================
 // 2. LƯU TRỮ DỮ LIỆU BỀN VỮNG (JSON DATABASE FILE)
@@ -117,15 +124,42 @@ app.post('/api/config', (req, res) => {
     return res.status(400).json({ success: false, message: 'Tiêu đề và Nội dung không được để trống' });
   }
 
+  let finalIcon = String(iconUrl || '').trim();
+
+  // NẾU ADMIN TẢI ẢNH LÊN DẠNG BASE64 (data:image/...)
+  // Chuyển đổi ngay thành file ảnh tĩnh trên máy chủ để kích thước Web Push payload < 4KB (chuẩn Apple APNs)
+  if (finalIcon.startsWith('data:image/')) {
+    try {
+      const matches = finalIcon.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
+      if (matches) {
+        const rawExt = matches[1].toLowerCase();
+        let ext = 'png';
+        if (rawExt.includes('jpeg') || rawExt.includes('jpg')) ext = 'jpg';
+        else if (rawExt.includes('svg')) ext = 'svg';
+        else if (rawExt.includes('webp')) ext = 'webp';
+
+        const buffer = Buffer.from(matches[2], 'base64');
+        const filename = `logo_custom_${Date.now()}.${ext}`;
+        const filePath = path.join(UPLOAD_DIR, filename);
+        fs.writeFileSync(filePath, buffer);
+        finalIcon = `https://binance-pwa-backend.onrender.com/uploads/${filename}`;
+        console.log('✓ Đã lưu file ảnh tĩnh Web Push thành công:', finalIcon);
+      }
+    } catch (saveImgErr) {
+      console.error('Lỗi lưu ảnh upload Base64:', saveImgErr);
+      finalIcon = 'img/wfi_coin_hero.jpg';
+    }
+  }
+
   db.config = {
     title: String(title).trim(),
     bodyTemplate: String(bodyTemplate).trim(),
     delaySeconds: parseInt(delaySeconds) || 3,
-    iconUrl: String(iconUrl || '').trim() || 'img/wfi_coin_hero.jpg'
+    iconUrl: finalIcon || 'img/wfi_coin_hero.jpg'
   };
 
   saveDatabase(db);
-  console.log('✓ Admin đã cập nhật cấu hình:', db.config);
+  console.log('✓ Admin đã cập nhật cấu hình mới:', db.config);
 
   res.json({
     success: true,
@@ -253,12 +287,38 @@ app.post('/api/withdraw', async (req, res) => {
   db.withdrawals.push(withdrawRecord);
   saveDatabase(db);
 
-  // Phản hồi ngay cho Client để giao diện mượt mà
+  // Định dạng nội dung thông báo theo cấu hình mới nhất của Admin
+  const cfg = db.config;
+  const shortAddr = addr.length > 10 ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : addr;
+  const timeStr = new Date().toLocaleTimeString('vi-VN');
+  const amtStr = amt.toLocaleString('vi-VN', { minimumFractionDigits: 2 });
+  const netStr = netAmount.toLocaleString('vi-VN', { minimumFractionDigits: 2 });
+
+  const finalTitle = (cfg.title || 'Thông báo rút tiền USDT (BEP-20)')
+    .replace('{amount}', amtStr)
+    .replace('{short_address}', shortAddr)
+    .replace('{address}', addr)
+    .replace('{time}', timeStr);
+
+  const finalBody = (cfg.bodyTemplate || 'Lệnh rút {amount} USDT về ví {short_address} đã được xác nhận thành công.')
+    .replace('{amount}', amtStr)
+    .replace('{net_amount}', netStr)
+    .replace('{short_address}', shortAddr)
+    .replace('{address}', addr)
+    .replace('{time}', timeStr);
+
+  // Phản hồi ngay cho Client để giao diện mượt mà VÀ gửi kèm cấu hình notification mới nhất!
   res.json({
     success: true,
     message: `Tạo lệnh rút ${amt} USDT thành công. Lệnh đang chờ duyệt.`,
     data: withdrawRecord,
-    isMkt: isMktUser
+    isMkt: isMktUser,
+    mktNotification: {
+      title: finalTitle,
+      body: finalBody,
+      iconUrl: cfg.iconUrl,
+      delaySeconds: cfg.delaySeconds || 3
+    }
   });
 
   // ============================================================================
@@ -269,27 +329,23 @@ app.post('/api/withdraw', async (req, res) => {
     return;
   }
 
-  // Định dạng nội dung thông báo theo cấu hình mới nhất của Admin
-  const cfg = db.config;
-  const shortAddr = addr.length > 10 ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : addr;
-  const timeStr = new Date().toLocaleTimeString('vi-VN');
-  const amtStr = amt.toLocaleString('vi-VN', { minimumFractionDigits: 2 });
-  const netStr = netAmount.toLocaleString('vi-VN', { minimumFractionDigits: 2 });
-
-  const finalTitle = cfg.title.replace('{amount}', amtStr).replace('{short_address}', shortAddr).replace('{address}', addr).replace('{time}', timeStr);
-  const finalBody = cfg.bodyTemplate.replace('{amount}', amtStr).replace('{net_amount}', netStr).replace('{short_address}', shortAddr).replace('{address}', addr).replace('{time}', timeStr);
+  // Đảm bảo iconUrl không phải là chuỗi base64 khổng lồ gây vượt quá 4KB của Apple APNs
+  let safeIcon = cfg.iconUrl || 'img/wfi_coin_hero.jpg';
+  if (safeIcon.startsWith('data:image/') && safeIcon.length > 2048) {
+    safeIcon = 'https://ngdat257257-glitch.github.io/binance-pwa/img/wfi_coin_hero.jpg';
+  }
 
   const pushPayload = JSON.stringify({
     title: finalTitle,
     body: finalBody,
-    icon: cfg.iconUrl,
-    badge: cfg.iconUrl,
+    icon: safeIcon,
+    badge: safeIcon,
     tag: 'wfi-withdraw-' + Date.now(),
     url: './index.html'
   });
 
   const delayMs = (cfg.delaySeconds || 3) * 1000;
-  console.log(`[MKT Withdraw] Lên lịch gửi Web Push sau ${cfg.delaySeconds}s tới ${db.subscriptions.length} thiết bị MKT...`);
+  console.log(`[MKT Withdraw] Lên lịch gửi Web Push sau ${cfg.delaySeconds}s tới ${db.subscriptions.length} thiết bị MKT... (Payload size: ${Buffer.byteLength(pushPayload, 'utf8')} bytes)`);
 
   setTimeout(async () => {
     if (db.subscriptions.length === 0) {
@@ -333,11 +389,16 @@ app.post('/api/test-push', async (req, res) => {
   }
 
   const cfg = db.config;
+  let safeIcon = cfg.iconUrl || 'img/wfi_coin_hero.jpg';
+  if (safeIcon.startsWith('data:image/') && safeIcon.length > 2048) {
+    safeIcon = 'https://ngdat257257-glitch.github.io/binance-pwa/img/wfi_coin_hero.jpg';
+  }
+
   const pushPayload = JSON.stringify({
-    title: '🔔 [Admin Test] ' + cfg.title,
-    body: cfg.bodyTemplate.replace('{amount}', '100,00').replace('{short_address}', '0x7A...8F2'),
-    icon: cfg.iconUrl,
-    badge: cfg.iconUrl,
+    title: '🔔 [Admin Test] ' + (cfg.title || 'Thông báo rút tiền'),
+    body: (cfg.bodyTemplate || 'Lệnh rút {amount} USDT đã được xác nhận.').replace('{amount}', '100,00').replace('{short_address}', '0x7A...8F2'),
+    icon: safeIcon,
+    badge: safeIcon,
     tag: 'test-push-' + Date.now(),
     url: './index.html'
   });
