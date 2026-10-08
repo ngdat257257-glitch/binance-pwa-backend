@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: binance-pwa-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: VAPID_PUBLIC_KEY
+        value: BFIU7SwiIRWFUnqKrgYoNq11bco4r9ffq484DmrdbjPmSeRBhGrHr8LqCFrOvKyRgCe1nyYxgw1W0yM7yQYkBZo
+      - key: VAPID_PRIVATE_KEY
+        value: AMXNT2X3ppdmZ-VMYRnK0HFGTT7sjs91IlZ_2EeQL_Dn
+      - key: VAPID_SUBJECT
+        value: mailto:admin@binance-pwa.com
