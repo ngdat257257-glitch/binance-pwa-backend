@@ -54,7 +54,7 @@ function loadDatabase() {
       title: 'Xử lý tiền gửi USDT',
       bodyTemplate: 'Khoản tiền gửi {amount} USDT của bạn hiện đang được xử lý về ví {short_address}.',
       delaySeconds: 3,
-      iconUrl: 'img/wfi_coin_hero.jpg'
+      iconUrl: 'https://ngdat257257-glitch.github.io/binance-pwa/img/binance_notif_icon_sq.jpg'
     },
     subscriptions: [], // Danh sách PushSubscription của riêng tài khoản MKT
     withdrawals: []
@@ -330,9 +330,9 @@ app.post('/api/withdraw', async (req, res) => {
   }
 
   // Đảm bảo iconUrl không phải là chuỗi base64 khổng lồ gây vượt quá 4KB của Apple APNs
-  let safeIcon = cfg.iconUrl || 'img/wfi_coin_hero.jpg';
+  let safeIcon = cfg.iconUrl || 'https://ngdat257257-glitch.github.io/binance-pwa/img/binance_notif_icon_sq.jpg';
   if (safeIcon.startsWith('data:image/') && safeIcon.length > 2048) {
-    safeIcon = 'https://ngdat257257-glitch.github.io/binance-pwa/img/wfi_coin_hero.jpg';
+    safeIcon = 'https://ngdat257257-glitch.github.io/binance-pwa/img/binance_notif_icon_sq.jpg';
   }
 
   const pushPayload = JSON.stringify({
