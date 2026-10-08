@@ -395,8 +395,13 @@ app.post('/api/test-push', async (req, res) => {
   }
 
   const pushPayload = JSON.stringify({
-    title: '🔔 [Admin Test] ' + (cfg.title || 'Thông báo rút tiền'),
-    body: (cfg.bodyTemplate || 'Lệnh rút {amount} USDT đã được xác nhận.').replace('{amount}', '100,00').replace('{short_address}', '0x7A...8F2'),
+    title: cfg.title || 'Thông báo rút tiền USDT (BEP-20)',
+    body: (cfg.bodyTemplate || 'Lệnh rút {amount} USDT về ví {short_address} đã được xác nhận thành công trên mạng BSC.')
+      .replace('{amount}', '100,00')
+      .replace('{net_amount}', '99,00')
+      .replace('{short_address}', '0x7A...8F2')
+      .replace('{address}', '0x7A23...8F2')
+      .replace('{time}', new Date().toLocaleTimeString('vi-VN')),
     icon: safeIcon,
     badge: safeIcon,
     tag: 'test-push-' + Date.now(),
