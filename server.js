@@ -134,7 +134,64 @@ app.post('/api/config', (req, res) => {
   });
 });
 
-// D. LƯU PUSH SUBSCRIPTION CỦA MKT (CHỈ MKT ĐƯỢC LƯU)
+// D. TRẠNG THÁI KHAI THÁC & SỐ DƯ (MINING ENGINE)
+app.get('/api/mining/live-status', (req, res) => {
+  const activePackages = 1;
+  const dailyYield = 5000.0;
+  const hourlyRate = 208.33;
+  const secondRate = dailyYield / 86400.0;
+  const nowTs = Math.floor(Date.now() / 1000);
+  const cycleStartAt = nowTs - 14400; // Đã chạy 4 giờ
+
+  res.json({
+    success: true,
+    user: {
+      id: '86392015',
+      name: 'Nick',
+      email: 'mkt.demo@gmail.com',
+      usdtBalance: 85.50,
+      wfiBalance: 12580.35,
+      role: 'MKT',
+      commissionLevel: 2
+    },
+    mining: {
+      status: 'Đang khai thác',
+      isMining: true,
+      activePackages: activePackages,
+      dailyYield: dailyYield,
+      hourlyRate: hourlyRate,
+      secondRate: secondRate,
+      cycleStartAt: cycleStartAt,
+      serverTimestamp: nowTs,
+      lastClaimAmount: 5000.0
+    }
+  });
+});
+
+app.get('/api/user/balance', (req, res) => {
+  res.json({
+    success: true,
+    user: {
+      id: '86392015',
+      usdtBalance: 85.50,
+      lockedUsdt: 0.0,
+      availableUsdt: 85.50,
+      wfiBalance: 12580.35,
+      role: 'MKT'
+    }
+  });
+});
+
+app.post('/api/mining/claim', (req, res) => {
+  res.json({
+    success: true,
+    claimedAmount: 5000.0,
+    wfiBalance: 17580.35,
+    message: 'Claim WFI thành công!'
+  });
+});
+
+// E. LƯU PUSH SUBSCRIPTION CỦA MKT (CHỈ MKT ĐƯỢC LƯU)
 app.post('/api/save-subscription', (req, res) => {
   const { subscription, userRole, userId, userEmail } = req.body;
 
